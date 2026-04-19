@@ -13,7 +13,6 @@ st.set_page_config(page_title="Endangered Species AI", layout="wide")
 model, scaler, label_encoder = load_model()
 df = load_data()
 
-# ---------------- TITLE ----------------
 st.title("🌍 Endangered Species Risk Intelligence System")
 
 st.markdown("""
@@ -21,11 +20,16 @@ A machine learning system that predicts extinction risk using population trends,
 growth ratios, and ecological change indicators.
 """)
 
-# ---------------- SAFE CHECK ----------------
-if df is None or model is None:
+# ---------------- HARD STOP IF MODEL FAILS ----------------
+if model is None or scaler is None or label_encoder is None:
+    st.error("Model failed to load. Check pickle files in /model folder.")
     st.stop()
 
-# ---------------- SIDEBAR INPUT ----------------
+if df is None:
+    st.error("Dataset failed to load.")
+    st.stop()
+
+# ---------------- SIDEBAR ----------------
 st.sidebar.header("🔍 Predict Species Risk")
 
 pop_1970 = st.sidebar.number_input("Population in 1970", min_value=1.0, value=100.0)
@@ -42,26 +46,36 @@ scaled = scaler.transform(input_data)
 # ---------------- PREDICTION ----------------
 if st.sidebar.button("Predict Risk"):
     pred = model.predict(scaled)
-    label = label_encoder.inverse_transform(pred)[0]
+
+    # SAFE handling (important fix)
+    if hasattr(label_encoder, "inverse_transform"):
+        label = label_encoder.inverse_transform(pred)[0]
+    else:
+        label = str(pred[0])
 
     st.subheader("🧠 Prediction Result")
     st.success(f"Predicted Risk: **{label}**")
 
-# ---------------- LAYOUT (SINGLE SCROLL PAGE) ----------------
-
 st.divider()
 
-# ---------------- FEATURE IMPORTANCE ----------------
+# ---------------- FEATURE IMPORTANCE (FIXED SAFE VERSION) ----------------
 st.subheader("📊 Model Feature Importance")
 
 features = ["1970", "2020", "Change", "Growth_Ratio", "Log_Change"]
 
-importance = model.feature_importances_
+if hasattr(model, "feature_importances_"):
+    importance = model.feature_importances_
 
-fig, ax = plt.subplots()
-ax.barh(features, importance)
-ax.set_title("Feature Importance (Random Forest)")
-st.pyplot(fig)
+    # SAFETY CHECK
+    if len(importance) == len(features):
+        fig, ax = plt.subplots()
+        ax.barh(features, importance)
+        ax.set_title("Feature Importance (Random Forest)")
+        st.pyplot(fig)
+    else:
+        st.warning("Feature importance mismatch detected.")
+else:
+    st.warning("This model does not support feature importance.")
 
 st.divider()
 
@@ -86,11 +100,9 @@ st.divider()
 # ---------------- COUNTRY ANALYSIS ----------------
 st.subheader("🌍 Country-Level Endangered Distribution")
 
-if "Country" in df.columns:
-    endangered_df = df.copy()
+if "Country" in df.columns and "Risk" in df.columns:
 
-    if "Risk" in df.columns:
-        endangered_df = df[df["Risk"] == "Endangered"]
+    endangered_df = df[df["Risk"] == "Endangered"]
 
     country_counts = endangered_df["Country"].value_counts().head(10)
 
@@ -105,7 +117,7 @@ if "Country" in df.columns:
 
 st.divider()
 
-# ---------------- GLOBAL STORY ----------------
+# ---------------- INSIGHT ----------------
 st.subheader("🧠 Insight Summary")
 
 st.markdown("""
