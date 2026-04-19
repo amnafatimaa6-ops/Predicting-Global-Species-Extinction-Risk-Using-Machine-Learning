@@ -1,48 +1,43 @@
-import os
-import numpy as np
 import pickle
+import pandas as pd
+import streamlit as st
+import os
 
-# ----------------------------
-# SAFE MODEL LOADING
-# ----------------------------
+@st.cache_resource
 def load_model():
+    try:
+        with open("model/model.pkl", "rb") as f:
+            model = pickle.load(f)
 
-    base_path = os.path.dirname(__file__)
-    model_path = os.path.join(base_path, "..", "model", "model.pkl")
-    scaler_path = os.path.join(base_path, "..", "model", "scaler.pkl")
-    encoder_path = os.path.join(base_path, "..", "model", "label_encoder.pkl")
+        with open("model/scaler.pkl", "rb") as f:
+            scaler = pickle.load(f)
 
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
+        with open("model/label_encoder.pkl", "rb") as f:
+            label_encoder = pickle.load(f)
 
-    with open(scaler_path, "rb") as f:
-        scaler = pickle.load(f)
+        return model, scaler, label_encoder
 
-    with open(encoder_path, "rb") as f:
-        label_encoder = pickle.load(f)
-
-    return model, scaler, label_encoder
-
-
-# ----------------------------
-# FEATURE ENGINEERING (MATCH TRAINING EXACTLY)
-# ----------------------------
-def create_features(pop_1970, pop_2020):
-
-    change = pop_2020 - pop_1970
-    growth_ratio = pop_2020 / (pop_1970 + 1)
-    log_change = np.log1p(pop_2020) - np.log1p(pop_1970)
-
-    return np.array([[pop_1970, pop_2020, change, growth_ratio, log_change]])
+    except Exception as e:
+        st.error(f"Model loading failed: {e}")
+        return None, None, None
 
 
-# ----------------------------
-# PREDICTION FUNCTION
-# ----------------------------
-def predict_risk(model, scaler, label_encoder, input_data):
+@st.cache_data
+def load_data():
+    """
+    Streamlit-safe dataset loader
+    """
+    try:
+        # OPTION 1: local repo file
+        if os.path.exists("data/data.csv"):
+            df = pd.read_csv("data/data.csv")
+            return df
 
-    scaled = scaler.transform(input_data)
-    pred = model.predict(scaled)
-    label = label_encoder.inverse_transform(pred)
+        # OPTION 2: fallback (replace with your GitHub raw link later)
+        url = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/data/data.csv"
+        df = pd.read_csv(url)
+        return df
 
-    return label[0]
+    except Exception as e:
+        st.error(f"Data loading failed: {e}")
+        return None
