@@ -1,226 +1,159 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import pickle
 import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
-import joblib
 
-# =========================
-# APP CONFIG
-# =========================
-st.set_page_config(page_title="Endangered Species AI", layout="wide")
+# ----------------------------
+# PAGE CONFIG
+# ----------------------------
+st.set_page_config(
+    page_title="Endangered Species Risk Intelligence System",
+    layout="wide"
+)
 
 st.title("🌍 Endangered Species Risk Intelligence System")
 
-# =========================
-# LOAD MODEL ARTIFACTS (SAFE)
-# =========================
-model = joblib.load("model/model.pkl")
-scaler = joblib.load("model/scaler.pkl")
-label_encoder = joblib.load("model/label_encoder.pkl")
+# ----------------------------
+# LOAD DATA FROM GOOGLE DRIVE
+# ----------------------------
+@st.cache_data
+def load_data():
+    url = "https://drive.google.com/uc?id=1Ob1WSj2jntkLOKoSMR1MuhQpL0gaItoK"
+    df = pd.read_csv(url)
+    return df
 
-# =========================
-# LOAD DATA
-# =========================
-df = pd.read_csv("data.csv")
+df = load_data()
 
-# =========================
-# CLEANING
-# =========================
-df.columns = df.columns.str.strip()
+# ----------------------------
+# BASIC CLEANING (SAFE GUARD)
+# ----------------------------
 df = df.drop(columns=["Unnamed: 102"], errors="ignore")
+df.columns = df.columns.str.strip()
 
-# detect year columns
+# Convert year columns safely if needed
 year_cols = [col for col in df.columns if str(col).isdigit()]
 
-# =========================
-# LONG FORMAT
-# =========================
-df_long = df.melt(
-    id_vars=["Binomial"],
-    value_vars=year_cols,
-    var_name="Year",
-    value_name="Population"
+# ----------------------------
+# LOAD MODEL FILES
+# ----------------------------
+model = pickle.load(open("model/model.pkl", "rb"))
+scaler = pickle.load(open("model/scaler.pkl", "rb"))
+label_encoder = pickle.load(open("model/label_encoder.pkl", "rb"))
+
+# ----------------------------
+# FEATURE ENGINEERING (SAME AS TRAINING)
+# ----------------------------
+df["1970"] = pd.to_numeric(df["1970"], errors="coerce")
+df["2020"] = pd.to_numeric(df["2020"], errors="coerce")
+
+df = df.dropna(subset=["1970", "2020"])
+
+df["Change"] = df["2020"] - df["1970"]
+df["Growth_Ratio"] = df["2020"] / (df["1970"] + 1)
+df["Log_Change"] = np.log1p(df["2020"]) - np.log1p(df["1970"])
+
+# ----------------------------
+# SIDEBAR (SIMPLE - NO TABS)
+# ----------------------------
+st.sidebar.header("⚙️ Controls")
+
+section = st.sidebar.selectbox(
+    "Choose Section",
+    ["Overview", "Model Insights", "Country Analysis", "Predict Risk"]
 )
 
-df_long["Year"] = pd.to_numeric(df_long["Year"])
-df_long["Population"] = pd.to_numeric(df_long["Population"], errors="coerce")
-df_long = df_long.dropna(subset=["Population"])
+# ----------------------------
+# OVERVIEW
+# ----------------------------
+if section == "Overview":
+    st.subheader("📊 Dataset Overview")
 
-# =========================
-# AGGREGATION
-# =========================
-df_grouped = df_long.groupby(["Binomial", "Year"])["Population"].mean().unstack()
+    st.write(df.head())
 
-df_pivot = df_grouped[[1970, 2020]].dropna()
+    st.write("### Species Count")
+    st.write(df["Binomial"].nunique())
 
-# =========================
-# FEATURE ENGINEERING
-# =========================
-df_pivot["Change"] = df_pivot[2020] - df_pivot[1970]
-df_pivot["Growth_Ratio"] = df_pivot[2020] / (df_pivot[1970] + 1)
-df_pivot["Log_Change"] = np.log1p(df_pivot[2020]) - np.log1p(df_pivot[1970])
+    st.write("### Quick Trend (1970 → 2020)")
+    trend = df.groupby("Binomial")["2020"].mean()
+    st.line_chart(trend.head(50))
 
-df_pivot["Risk"] = "Stable"
-df_pivot.loc[df_pivot["Growth_Ratio"] < 0.5, "Risk"] = "Endangered"
-df_pivot.loc[
-    (df_pivot["Growth_Ratio"] >= 0.5) & (df_pivot["Growth_Ratio"] < 0.8),
-    "Risk"
-] = "Vulnerable"
-
-ml_df = df_pivot.reset_index()
-
-# =========================
-# FEATURES
-# =========================
-features = ["1970", "2020", "Change", "Growth_Ratio", "Log_Change"]
-X = ml_df[features]
-
-X_scaled = scaler.transform(X)
-
-# =========================
+# ----------------------------
 # MODEL INSIGHTS
-# =========================
-st.header("🧠 Feature Importance")
+# ----------------------------
+elif section == "Model Insights":
+    st.subheader("🧠 Feature Importance")
 
-importances = model.feature_importances_
-indices = np.argsort(importances)[::-1]
+    features = ["1970", "2020", "Change", "Growth_Ratio", "Log_Change"]
 
-fig, ax = plt.subplots(figsize=(8,5))
-ax.bar(np.array(features)[indices], importances[indices])
-ax.set_title("Random Forest Feature Importance")
-ax.set_ylabel("Importance Score")
-plt.xticks(rotation=45)
+    importances = model.feature_importances_
 
-st.pyplot(fig)
+    fig, ax = plt.subplots()
+    ax.bar(features, importances)
+    ax.set_title("Feature Importance (Random Forest)")
+    plt.xticks(rotation=45)
 
-# =========================
-# MODEL COMPARISON
-# =========================
-st.header("⚖️ Model Comparison")
+    st.pyplot(fig)
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+    st.subheader("🔥 Correlation Heatmap")
 
-y = label_encoder.transform(ml_df["Risk"])
+    corr = df[["1970", "2020", "Change", "Growth_Ratio", "Log_Change"]].corr()
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
-)
+    fig, ax = plt.subplots()
+    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
 
-rf = model
-lr = LogisticRegression(max_iter=1000)
-gb = GradientBoostingClassifier()
+    st.pyplot(fig)
 
-lr.fit(X_train, y_train)
-gb.fit(X_train, y_train)
-
-scores = {
-    "Random Forest": accuracy_score(y_test, rf.predict(X_test)),
-    "Logistic Regression": accuracy_score(y_test, lr.predict(X_test)),
-    "Gradient Boosting": accuracy_score(y_test, gb.predict(X_test))
-}
-
-st.bar_chart(pd.DataFrame.from_dict(scores, orient="index", columns=["Accuracy"]))
-
-# =========================
+# ----------------------------
 # COUNTRY ANALYSIS
-# =========================
-st.header("🌍 Country Analysis")
+# ----------------------------
+elif section == "Country Analysis":
+    st.subheader("🌍 Country-Level Endangered Species")
 
-if "Country" in df.columns:
-    temp = df.copy()
+    # simple risk rule (same logic idea you used)
+    df["Risk"] = "Stable"
+    df.loc[df["Growth_Ratio"] < 0.5, "Risk"] = "Endangered"
+    df.loc[(df["Growth_Ratio"] >= 0.5) & (df["Growth_Ratio"] < 0.8), "Risk"] = "Vulnerable"
 
-    if "Risk" in temp.columns:
-        endangered = temp[temp["Risk"] == "Endangered"]
-        top = endangered["Country"].value_counts().head(10)
+    endangered = df[df["Risk"] == "Endangered"]
 
-        fig2 = px.bar(
-            x=top.index,
-            y=top.values,
-            labels={"x": "Country", "y": "Endangered Species"},
-            title="Top Countries with Endangered Species"
-        )
+    country_counts = endangered["Country"].value_counts().head(10)
 
-        st.plotly_chart(fig2, use_container_width=True)
+    fig = px.bar(
+        country_counts,
+        x=country_counts.index,
+        y=country_counts.values,
+        labels={"x": "Country", "y": "Count"},
+        title="Top Countries with Endangered Species"
+    )
 
-# =========================
-# CONTINENT VIEW
-# =========================
-st.header("🌐 Continental Distribution")
+    st.plotly_chart(fig, use_container_width=True)
 
-continent_map = {
-    "United States": "North America",
-    "United Kingdom": "Europe",
-    "Faroe Islands": "Europe",
-    "New Zealand": "Oceania",
-    "South Africa": "Africa",
-    "Ireland": "Europe",
-    "Norway": "Europe"
-}
+# ----------------------------
+# PREDICTION
+# ----------------------------
+elif section == "Predict Risk":
+    st.subheader("🔮 Predict Species Risk")
 
-if "Country" in df.columns:
-    temp = df.copy()
+    col1, col2 = st.columns(2)
 
-    if "Risk" in temp.columns:
-        temp = temp[temp["Risk"] == "Endangered"]
-        temp["Continent"] = temp["Country"].map(continent_map)
+    with col1:
+        pop_1970 = st.number_input("Population in 1970", min_value=0.0, value=100.0)
 
-        cont = temp["Continent"].value_counts()
-
-        fig3 = px.pie(
-            values=cont.values,
-            names=cont.index,
-            title="Endangered Species by Continent"
-        )
-
-        st.plotly_chart(fig3, use_container_width=True)
-
-# =========================
-# PREDICTION SYSTEM
-# =========================
-st.header("🔮 Predict Species Risk")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    pop_1970 = st.number_input("Population 1970", value=100.0)
-
-with col2:
-    pop_2020 = st.number_input("Population 2020", value=50.0)
-
-if st.button("Predict Risk"):
+    with col2:
+        pop_2020 = st.number_input("Population in 2020", min_value=0.0, value=80.0)
 
     change = pop_2020 - pop_1970
-    ratio = pop_2020 / (pop_1970 + 1)
-    logc = np.log1p(pop_2020) - np.log1p(pop_1970)
+    growth_ratio = pop_2020 / (pop_1970 + 1)
+    log_change = np.log1p(pop_2020) - np.log1p(pop_1970)
 
-    input_data = np.array([[pop_1970, pop_2020, change, ratio, logc]])
+    input_data = np.array([[pop_1970, pop_2020, change, growth_ratio, log_change]])
     input_scaled = scaler.transform(input_data)
 
-    pred = model.predict(input_scaled)[0]
-    label = label_encoder.inverse_transform([pred])[0]
+    if st.button("Predict Risk"):
+        pred = model.predict(input_scaled)
+        label = label_encoder.inverse_transform(pred)
 
-    st.success(f"Predicted Risk: {label}")
-
-# =========================
-# FINAL INSIGHT
-# =========================
-st.header("📌 Conclusion")
-
-st.markdown("""
-This AI system analyses species population trends to predict extinction risk.
-
-Key insights:
-- Growth ratio is the strongest predictor
-- Ensemble models perform best (~95% accuracy)
-- Geographic patterns reflect both ecology and data bias
-
-This project combines machine learning with real ecological interpretation.
-""")
+        st.success(f"🌿 Predicted Risk: **{label[0]}**")
