@@ -1,29 +1,36 @@
+import numpy as np
 import pandas as pd
-import joblib
-import gdown
+import pickle
 
-# -------------------------
-# Load dataset from Google Drive
-# -------------------------
-def load_data():
-    file_id = "1Ob1WSj2jntkLOKoSMR1MuhQpL0gaItoK"
-    url = f"https://drive.google.com/uc?id={file_id}"
-    
-    output = "data.csv"
-    gdown.download(url, output, quiet=True)
-    
-    df = pd.read_csv("data.csv")
-    return df
-
-
-# -------------------------
-# Load ML artifacts
-# -------------------------
+# ----------------------------
+# LOAD MODEL COMPONENTS
+# ----------------------------
 def load_model():
-    return joblib.load("model/model.pkl")
+    model = pickle.load(open("model/model.pkl", "rb"))
+    scaler = pickle.load(open("model/scaler.pkl", "rb"))
+    label_encoder = pickle.load(open("model/label_encoder.pkl", "rb"))
+    return model, scaler, label_encoder
 
-def load_scaler():
-    return joblib.load("model/scaler.pkl")
 
-def load_encoder():
-    return joblib.load("model/label_encoder.pkl")
+# ----------------------------
+# FEATURE ENGINEERING (MATCH NOTEBOOK EXACTLY)
+# ----------------------------
+def create_features(pop_1970, pop_2020):
+
+    change = pop_2020 - pop_1970
+    growth_ratio = pop_2020 / (pop_1970 + 1)
+    log_change = np.log1p(pop_2020) - np.log1p(pop_1970)
+
+    return np.array([[pop_1970, pop_2020, change, growth_ratio, log_change]])
+
+
+# ----------------------------
+# PREDICT FUNCTION
+# ----------------------------
+def predict_risk(model, scaler, label_encoder, input_data):
+
+    scaled = scaler.transform(input_data)
+    pred = model.predict(scaled)
+    label = label_encoder.inverse_transform(pred)
+
+    return label[0]
