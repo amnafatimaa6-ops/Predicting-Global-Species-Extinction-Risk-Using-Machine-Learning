@@ -1,19 +1,31 @@
+import os
 import numpy as np
-import pandas as pd
 import pickle
 
 # ----------------------------
-# LOAD MODEL COMPONENTS
+# SAFE MODEL LOADING
 # ----------------------------
 def load_model():
-    model = pickle.load(open("model/model.pkl", "rb"))
-    scaler = pickle.load(open("model/scaler.pkl", "rb"))
-    label_encoder = pickle.load(open("model/label_encoder.pkl", "rb"))
+
+    base_path = os.path.dirname(__file__)
+    model_path = os.path.join(base_path, "..", "model", "model.pkl")
+    scaler_path = os.path.join(base_path, "..", "model", "scaler.pkl")
+    encoder_path = os.path.join(base_path, "..", "model", "label_encoder.pkl")
+
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+
+    with open(scaler_path, "rb") as f:
+        scaler = pickle.load(f)
+
+    with open(encoder_path, "rb") as f:
+        label_encoder = pickle.load(f)
+
     return model, scaler, label_encoder
 
 
 # ----------------------------
-# FEATURE ENGINEERING (MATCH NOTEBOOK EXACTLY)
+# FEATURE ENGINEERING (MATCH TRAINING EXACTLY)
 # ----------------------------
 def create_features(pop_1970, pop_2020):
 
@@ -25,7 +37,7 @@ def create_features(pop_1970, pop_2020):
 
 
 # ----------------------------
-# PREDICT FUNCTION
+# PREDICTION FUNCTION
 # ----------------------------
 def predict_risk(model, scaler, label_encoder, input_data):
 
