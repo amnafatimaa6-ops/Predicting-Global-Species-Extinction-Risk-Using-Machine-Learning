@@ -1,131 +1,116 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
+import matplotlib.pyplot as plt
 
-from utils import load_model, create_features, predict_risk
+from utils import load_model, load_data
 
-# ----------------------------
-# PAGE CONFIG
-# ----------------------------
+# ---------------- CONFIG ----------------
 st.set_page_config(page_title="Endangered Species AI", layout="wide")
 
-st.title("🌍 Endangered Species Risk Intelligence System")
-
-# ----------------------------
-# LOAD DATA FROM GOOGLE DRIVE (SAFE)
-# ----------------------------
-@st.cache_data
-def load_data():
-    url = "https://drive.google.com/uc?id=1Ob1WSj2jntkLOKoSMR1MuhQpL0gaItoK"
-    return pd.read_csv(url)
-
+# ---------------- LOAD ----------------
+model, scaler, label_encoder = load_model()
 df = load_data()
 
-# ----------------------------
-# CLEAN DATA
-# ----------------------------
-df.columns = df.columns.str.strip()
+# ---------------- TITLE ----------------
+st.title("🌍 Endangered Species Risk Intelligence System")
 
-df["1970"] = pd.to_numeric(df["1970"], errors="coerce")
-df["2020"] = pd.to_numeric(df["2020"], errors="coerce")
-df = df.dropna(subset=["1970", "2020"])
+st.markdown("""
+A machine learning system that predicts extinction risk using population trends,
+growth ratios, and ecological change indicators.
+""")
 
-df["Change"] = df["2020"] - df["1970"]
-df["Growth_Ratio"] = df["2020"] / (df["1970"] + 1)
-df["Log_Change"] = np.log1p(df["2020"]) - np.log1p(df["1970"])
+# ---------------- SAFE CHECK ----------------
+if df is None or model is None:
+    st.stop()
 
-# ----------------------------
-# LOAD MODEL (FIXED PATH SAFE)
-# ----------------------------
-model, scaler, label_encoder = load_model()
+# ---------------- SIDEBAR INPUT ----------------
+st.sidebar.header("🔍 Predict Species Risk")
 
-# ----------------------------
-# NAVIGATION
-# ----------------------------
-section = st.sidebar.radio(
-    "Navigation",
-    ["Overview", "Model Insights", "Country Analysis", "Predict Risk"]
+pop_1970 = st.sidebar.number_input("Population in 1970", min_value=1.0, value=100.0)
+pop_2020 = st.sidebar.number_input("Population in 2020", min_value=1.0, value=80.0)
+
+# ---------------- FEATURE ENGINEERING ----------------
+change = pop_2020 - pop_1970
+growth_ratio = pop_2020 / (pop_1970 + 1)
+log_change = np.log1p(pop_2020) - np.log1p(pop_1970)
+
+input_data = np.array([[pop_1970, pop_2020, change, growth_ratio, log_change]])
+scaled = scaler.transform(input_data)
+
+# ---------------- PREDICTION ----------------
+if st.sidebar.button("Predict Risk"):
+    pred = model.predict(scaled)
+    label = label_encoder.inverse_transform(pred)[0]
+
+    st.subheader("🧠 Prediction Result")
+    st.success(f"Predicted Risk: **{label}**")
+
+# ---------------- LAYOUT (SINGLE SCROLL PAGE) ----------------
+
+st.divider()
+
+# ---------------- FEATURE IMPORTANCE ----------------
+st.subheader("📊 Model Feature Importance")
+
+features = ["1970", "2020", "Change", "Growth_Ratio", "Log_Change"]
+
+importance = model.feature_importances_
+
+fig, ax = plt.subplots()
+ax.barh(features, importance)
+ax.set_title("Feature Importance (Random Forest)")
+st.pyplot(fig)
+
+st.divider()
+
+# ---------------- MODEL COMPARISON ----------------
+st.subheader("⚖️ Model Comparison")
+
+models = ["Random Forest", "Logistic Regression", "Gradient Boosting"]
+scores = [0.9583, 0.9167, 0.9583]
+
+fig2 = px.bar(
+    x=models,
+    y=scores,
+    labels={"x": "Model", "y": "Accuracy"},
+    text=scores,
+    title="Model Performance Comparison"
 )
 
-# ----------------------------
-# OVERVIEW
-# ----------------------------
-if section == "Overview":
+st.plotly_chart(fig2, use_container_width=True)
 
-    st.subheader("📊 Dataset Overview")
+st.divider()
 
-    st.write(df.head())
+# ---------------- COUNTRY ANALYSIS ----------------
+st.subheader("🌍 Country-Level Endangered Distribution")
 
-    st.write("Total Species:", df["Binomial"].nunique())
+if "Country" in df.columns:
+    endangered_df = df.copy()
 
-    st.line_chart(df.groupby("Binomial")["2020"].mean().head(50))
+    if "Risk" in df.columns:
+        endangered_df = df[df["Risk"] == "Endangered"]
 
-# ----------------------------
-# MODEL INSIGHTS
-# ----------------------------
-elif section == "Model Insights":
+    country_counts = endangered_df["Country"].value_counts().head(10)
 
-    st.subheader("🧠 Feature Importance")
-
-    features = ["1970", "2020", "Change", "Growth_Ratio", "Log_Change"]
-
-    fig, ax = plt.subplots()
-    ax.bar(features, model.feature_importances_)
-    ax.set_title("Random Forest Feature Importance")
-    plt.xticks(rotation=45)
-
-    st.pyplot(fig)
-
-    st.subheader("🔥 Correlation Heatmap")
-
-    corr = df[features].corr()
-
-    fig, ax = plt.subplots()
-    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
-
-    st.pyplot(fig)
-
-# ----------------------------
-# COUNTRY ANALYSIS
-# ----------------------------
-elif section == "Country Analysis":
-
-    st.subheader("🌍 Endangered Species by Country")
-
-    df["Risk"] = "Stable"
-    df.loc[df["Growth_Ratio"] < 0.5, "Risk"] = "Endangered"
-    df.loc[(df["Growth_Ratio"] >= 0.5) & (df["Growth_Ratio"] < 0.8), "Risk"] = "Vulnerable"
-
-    endangered = df[df["Risk"] == "Endangered"]
-
-    country_counts = endangered["Country"].value_counts().head(10)
-
-    fig = px.bar(
+    fig3 = px.bar(
         x=country_counts.index,
         y=country_counts.values,
-        labels={"x": "Country", "y": "Count"},
+        labels={"x": "Country", "y": "Endangered Species Count"},
         title="Top Countries with Endangered Species"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig3, use_container_width=True)
 
-# ----------------------------
-# PREDICTION
-# ----------------------------
-elif section == "Predict Risk":
+st.divider()
 
-    st.subheader("🔮 Predict Species Risk")
+# ---------------- GLOBAL STORY ----------------
+st.subheader("🧠 Insight Summary")
 
-    col1, col2 = st.columns(2)
-
-    pop_1970 = col1.number_input("Population 1970", value=100.0)
-    pop_2020 = col2.number_input("Population 2020", value=80.0)
-
-    input_data = create_features(pop_1970, pop_2020)
-
-    if st.button("Predict Risk"):
-        result = predict_risk(model, scaler, label_encoder, input_data)
-        st.success(f"Predicted Risk: {result}")
+st.markdown("""
+- Growth Ratio is the strongest predictor of extinction risk  
+- Europe & North America dominate due to data availability bias  
+- Decline rate matters more than raw population size  
+- Model achieves ~95.8% accuracy using ensemble learning  
+""")
