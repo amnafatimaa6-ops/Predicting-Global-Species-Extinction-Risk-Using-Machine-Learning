@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 
 from utils import load_model, create_features, predict_risk
 
@@ -15,13 +15,12 @@ st.set_page_config(page_title="Endangered Species AI", layout="wide")
 st.title("🌍 Endangered Species Risk Intelligence System")
 
 # ----------------------------
-# LOAD DATA (GOOGLE DRIVE SAFE)
+# LOAD DATA FROM GOOGLE DRIVE (SAFE)
 # ----------------------------
 @st.cache_data
 def load_data():
     url = "https://drive.google.com/uc?id=1Ob1WSj2jntkLOKoSMR1MuhQpL0gaItoK"
-    df = pd.read_csv(url)
-    return df
+    return pd.read_csv(url)
 
 df = load_data()
 
@@ -39,15 +38,15 @@ df["Growth_Ratio"] = df["2020"] / (df["1970"] + 1)
 df["Log_Change"] = np.log1p(df["2020"]) - np.log1p(df["1970"])
 
 # ----------------------------
-# LOAD MODEL
+# LOAD MODEL (FIXED PATH SAFE)
 # ----------------------------
 model, scaler, label_encoder = load_model()
 
 # ----------------------------
-# SIMPLE SIDEBAR NAV (NO TABS LIKE YOU WANTED)
+# NAVIGATION
 # ----------------------------
 section = st.sidebar.radio(
-    "Navigate",
+    "Navigation",
     ["Overview", "Model Insights", "Country Analysis", "Predict Risk"]
 )
 
@@ -55,11 +54,12 @@ section = st.sidebar.radio(
 # OVERVIEW
 # ----------------------------
 if section == "Overview":
+
     st.subheader("📊 Dataset Overview")
 
     st.write(df.head())
 
-    st.write("Species Count:", df["Binomial"].nunique())
+    st.write("Total Species:", df["Binomial"].nunique())
 
     st.line_chart(df.groupby("Binomial")["2020"].mean().head(50))
 
@@ -74,7 +74,7 @@ elif section == "Model Insights":
 
     fig, ax = plt.subplots()
     ax.bar(features, model.feature_importances_)
-    ax.set_title("Feature Importance (Random Forest)")
+    ax.set_title("Random Forest Feature Importance")
     plt.xticks(rotation=45)
 
     st.pyplot(fig)
