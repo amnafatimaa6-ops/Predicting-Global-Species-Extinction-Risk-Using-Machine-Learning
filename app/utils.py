@@ -1,8 +1,8 @@
 import pickle
 import pandas as pd
 import streamlit as st
-import os
 
+# ---------------- MODEL LOADING ----------------
 @st.cache_resource
 def load_model():
     try:
@@ -22,19 +22,11 @@ def load_model():
         return None, None, None
 
 
+# ---------------- DATA LOADING (DRIVE FIXED) ----------------
 @st.cache_data
 def load_data():
-    """
-    Streamlit-safe dataset loader
-    """
     try:
-        # OPTION 1: local repo file
-        if os.path.exists("data/data.csv"):
-            df = pd.read_csv("data/data.csv")
-            return df
-
-        # OPTION 2: fallback (replace with your GitHub raw link later)
-        url = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/data/data.csv"
+        url = "https://drive.google.com/uc?id=1Ob1WSj2jntkLOKoSMR1MuhQpL0gaItoK"
         df = pd.read_csv(url)
         return df
 
