@@ -10,7 +10,7 @@ Instead of relying on raw snapshots, the system models population change over ti
 
 -------------------------------------------------------------------------------------------------------------------------------------
 
-📊 Problem Statement
+#📊 Problem Statement
 
 Biodiversity datasets are large but inconsistent across regions and time. Manual analysis of species decline is slow and subjective.
 
@@ -29,7 +29,7 @@ Aggregated data at species level
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 
-🧬 Feature Engineering (this is your strongest section)
+#🧬 Feature Engineering (this is your strongest section)
 
 Instead of feeding raw data, I engineered ecological indicators:
 
@@ -51,7 +51,7 @@ Smooths extreme variation in ecological data
 --------------------------------------------------------------------------------------------------------------------------------------
 
 
-🎯 Target Variable (Risk Classification)
+#🎯 Target Variable (Risk Classification)
 
 Species were labelled using decline rate:
 
@@ -63,7 +63,7 @@ This converts the problem into a multi-class classification task.
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
-🤖 Models Used
+#🤖 Models Used
 
 Three models were tested:
 
