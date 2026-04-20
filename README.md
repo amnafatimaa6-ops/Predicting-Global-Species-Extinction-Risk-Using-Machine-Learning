@@ -8,6 +8,8 @@ This project uses machine learning to analyse long-term species population data 
 
 Instead of relying on raw snapshots, the system models population change over time (1970 → 2020) to capture real ecological trends.
 
+-------------------------------------------------------------------------------------------------------------------------------------
+
 📊 Problem Statement
 
 Biodiversity datasets are large but inconsistent across regions and time. Manual analysis of species decline is slow and subjective.
@@ -24,6 +26,8 @@ Standardised year-based columns
 Aggregated data at species level
 
 👉 This step ensures the dataset becomes usable for ML instead of raw ecological logs.
+
+-----------------------------------------------------------------------------------------------------------------------------------------
 
 🧬 Feature Engineering (this is your strongest section)
 
@@ -44,6 +48,9 @@ Smooths extreme variation in ecological data
 
 👉 These features represent ecological behaviour, not just numbers
 
+--------------------------------------------------------------------------------------------------------------------------------------
+
+
 🎯 Target Variable (Risk Classification)
 
 Species were labelled using decline rate:
@@ -53,6 +60,8 @@ Vulnerable → moderate decline
 Endangered → severe decline
 
 This converts the problem into a multi-class classification task.
+
+---------------------------------------------------------------------------------------------------------------------------------
 
 🤖 Models Used
 
@@ -74,6 +83,8 @@ More interpretable (important for scientific use)
 Growth Ratio (most influential)
 Log Change
 Population trend difference
+
+-----------------------------------------------------------------------------------------------------------------------------------
 
 👉 Insight:
 
@@ -101,6 +112,9 @@ Higher reporting density
 
 This shows strong awareness of bias in machine learning datasets, which evaluators LOVE.
 
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
 📊 Evaluation Metrics
 Accuracy: ~95.8%
 Strong precision for major classes
@@ -112,6 +126,9 @@ This project goes beyond classification. It demonstrates how machine learning ca
 Data does not just describe nature — it shapes how we perceive it.
 
 Even a highly accurate model reflects the limitations of its dataset, especially in global biodiversity studies where data collection is uneven.
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
 
 💼 Skills Demonstrated
 Data Cleaning & Preprocessing
