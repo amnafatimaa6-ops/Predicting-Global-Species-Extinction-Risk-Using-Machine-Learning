@@ -63,7 +63,7 @@ This converts the problem into a multi-class classification task.
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
-#🤖 Models Used
+🤖 Models Used
 
 Three models were tested:
 
@@ -131,10 +131,15 @@ Even a highly accurate model reflects the limitations of its dataset, especially
 
 
 💼 Skills Demonstrated
+
 Data Cleaning & Preprocessing
+
 Feature Engineering (time-series ecological data)
+
 Supervised Machine Learning
+
 Model Evaluation & Comparison
+
 Data Visualization
 Bias detection in datasets
 Scientific interpretation of ML results
