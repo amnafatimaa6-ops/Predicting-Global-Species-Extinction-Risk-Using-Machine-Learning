@@ -10,7 +10,7 @@ Instead of relying on raw snapshots, the system models population change over ti
 
 -------------------------------------------------------------------------------------------------------------------------------------
 
-“📊 Problem Statement”
+📊 Problem Statement
 
 Biodiversity datasets are large but inconsistent across regions and time. Manual analysis of species decline is slow and subjective.
 
