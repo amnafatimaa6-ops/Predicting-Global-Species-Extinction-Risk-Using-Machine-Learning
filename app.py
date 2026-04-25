@@ -4,26 +4,51 @@ import requests
 import plotly.express as px
 
 # =========================
-# PAGE CONFIG
+# PAGE SETUP
 # =========================
 st.set_page_config(page_title="Biodiversity Intelligence System", layout="wide")
 
-st.title("🌍 Biodiversity Intelligence Dashboard (LIVE)")
-st.markdown("Real-time species occurrence data using GBIF API")
+st.title("🌍 Biodiversity Intelligence Dashboard (LIVE GBIF)")
+st.markdown("Real-time global species occurrence tracking system")
 
 # =========================
-# LIVE DATA FUNCTION
+# PRESET SPECIES (SIDEBAR)
+# =========================
+species_list = [
+    "Panthera leo",
+    "Panthera tigris",
+    "Elephas maximus",
+    "Canis lupus",
+    "Ursus arctos",
+    "Giraffa camelopardalis",
+    "Bos taurus",
+    "Homo sapiens",
+    "Equus zebra",
+    "Felis catus"
+]
+
+st.sidebar.header("🔎 Species Control Panel")
+
+selected_species = st.sidebar.selectbox("Choose a species", species_list)
+
+custom_species = st.sidebar.text_input("Or search manually")
+
+if custom_species:
+    selected_species = custom_species
+
+# =========================
+# LIVE API FUNCTION
 # =========================
 @st.cache_data(ttl=3600)
-def load_live_data(species_name):
+def get_data(species_name):
 
     url = f"https://api.gbif.org/v1/occurrence/search?scientificName={species_name}&limit=300"
-    response = requests.get(url)
+    res = requests.get(url)
 
-    if response.status_code != 200:
+    if res.status_code != 200:
         return pd.DataFrame()
 
-    data = response.json()
+    data = res.json()
 
     records = []
 
@@ -38,61 +63,66 @@ def load_live_data(species_name):
 
     return pd.DataFrame(records)
 
-# =========================
-# USER INPUT
-# =========================
-species = st.text_input("🔎 Enter species name", "Panthera leo")
-
-df = load_live_data(species)
+df = get_data(selected_species)
 
 # =========================
-# SAFETY CHECK
+# ERROR HANDLING
 # =========================
 if df.empty:
-    st.error("No live data found. Try another species name.")
+    st.error("No data found for this species. Try another one.")
     st.stop()
 
 # =========================
-# MAP VISUALIZATION
+# WORLD MAP (FIXED GLOBAL VIEW)
 # =========================
-st.subheader(f"📍 Live Sightings Map: {species}")
+st.subheader(f"🌍 Global Distribution: {selected_species}")
 
-fig = px.scatter_geo(
-    df,
+map_fig = px.scatter_geo(
+    df.dropna(),
     lat="lat",
     lon="lon",
     hover_name="species",
-    title="Global Occurrence Map"
+    title="Worldwide Occurrence Map",
+    projection="natural earth"
 )
 
-st.plotly_chart(fig, use_container_width=True)
+map_fig.update_layout(height=600)
+
+st.plotly_chart(map_fig, use_container_width=True)
 
 # =========================
 # COUNTRY ANALYSIS
 # =========================
-st.subheader("🌎 Country Distribution")
+st.subheader("🌎 Country Distribution (Top 10)")
 
 country_counts = df["country"].value_counts().dropna().head(10)
 
-fig2 = px.bar(
-    country_counts,
+bar_fig = px.bar(
     x=country_counts.index,
     y=country_counts.values,
-    title="Top Countries (Live Observations)"
+    labels={"x": "Country", "y": "Sightings"},
+    title="Top Countries with Observations"
 )
 
-st.plotly_chart(fig2, use_container_width=True)
+st.plotly_chart(bar_fig, use_container_width=True)
 
 # =========================
-# BASIC INSIGHTS
+# INSIGHTS PANEL
 # =========================
-st.subheader("🧠 Insights")
+st.subheader("🧠 Live Insights")
 
-st.write("Total Records Found:", len(df))
-st.write("Countries Covered:", df["country"].nunique())
-st.write("Years Range:", df["year"].min(), "to", df["year"].max())
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("Total Records", len(df))
+
+with col2:
+    st.metric("Countries Covered", df["country"].nunique())
+
+with col3:
+    st.metric("Latest Year", int(df["year"].max()) if df["year"].notna().any() else "N/A")
 
 st.info("""
-This dashboard uses live biodiversity occurrence data from GBIF.
-It does NOT rely on stored datasets — everything is fetched in real time.
+This system pulls LIVE biodiversity occurrence records from GBIF.
+It dynamically visualizes species distribution without storing any dataset locally.
 """)
