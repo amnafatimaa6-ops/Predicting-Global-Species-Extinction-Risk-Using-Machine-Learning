@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
+import pycountry
 
 # =========================
 # PAGE CONFIG
@@ -9,22 +10,22 @@ import plotly.express as px
 st.set_page_config(page_title="Biodiversity Intelligence System", layout="wide")
 
 st.title("🌍 Biodiversity Intelligence Dashboard (LIVE GBIF)")
-st.markdown("Real-time global species occurrence tracking using GBIF API")
+st.markdown("Real-time ecological intelligence using global species occurrence data")
 
 # =========================
-# SIDEBAR CONTROL PANEL
+# SIDEBAR SPECIES CONTROL
 # =========================
 species_list = [
     "Panthera leo",
     "Panthera tigris",
-    "Elephas maximus",
     "Canis lupus",
+    "Elephas maximus",
     "Ursus arctos",
     "Giraffa camelopardalis",
-    "Bos taurus",
     "Homo sapiens",
-    "Equus zebra",
-    "Felis catus"
+    "Felis catus",
+    "Bos taurus",
+    "Equus zebra"
 ]
 
 st.sidebar.header("🔎 Species Control Panel")
@@ -37,7 +38,7 @@ if custom_species:
     selected_species = custom_species
 
 # =========================
-# LIVE DATA FETCH (GBIF API)
+# LIVE GBIF DATA FETCH
 # =========================
 @st.cache_data(ttl=3600)
 def load_data(species_name):
@@ -71,12 +72,45 @@ if df.empty:
     st.error("No data found for this species. Try another one.")
     st.stop()
 
+# =========================
+# CLEAN GEO (ISO STANDARD)
+# =========================
+def to_iso3(country_name):
+    try:
+        return pycountry.countries.lookup(country_name).alpha_3
+    except:
+        return None
+
+df["iso3"] = df["country"].apply(to_iso3)
+df = df.dropna(subset=["iso3"])
+
 df_clean = df.dropna(subset=["lat", "lon"])
 
 # =========================
-# 🌍 COLOURED WORLD MAP
+# 🗺️ CHOROPLETH MAP (WORLD BOUNDARIES)
 # =========================
-st.subheader(f"🌍 Global Distribution: {selected_species}")
+st.subheader(f"🗺️ Global Distribution (Choropleth): {selected_species}")
+
+country_counts = df["iso3"].value_counts().reset_index()
+country_counts.columns = ["iso3", "count"]
+
+fig = px.choropleth(
+    country_counts,
+    locations="iso3",
+    color="count",
+    hover_name="iso3",
+    color_continuous_scale="Viridis",
+    title="Global Species Distribution by Country"
+)
+
+fig.update_layout(height=600)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# 🌍 GEO SCATTER MAP (COLOURED)
+# =========================
+st.subheader("🌍 Point Distribution Map")
 
 map_fig = px.scatter_geo(
     df_clean,
@@ -85,7 +119,7 @@ map_fig = px.scatter_geo(
     color="country",
     hover_name="species",
     projection="natural earth",
-    title="Global Biodiversity Distribution (Colored by Country)"
+    title="Global Biodiversity Points"
 )
 
 map_fig.update_traces(marker=dict(size=6, opacity=0.7))
@@ -95,7 +129,7 @@ map_fig.update_layout(height=600)
 st.plotly_chart(map_fig, use_container_width=True)
 
 # =========================
-# 🔥 HEATMAP (HOTSPOT MODE)
+# 🔥 HEATMAP (HOTSPOTS)
 # =========================
 st.subheader("🔥 Biodiversity Hotspot Heatmap")
 
@@ -106,62 +140,65 @@ heat_fig = px.density_map(
     radius=12,
     center=dict(lat=20, lon=0),
     zoom=0,
-    map_style="carto-positron",
-    title="Species Density Hotspots"
+    map_style="carto-darkmatter",
+    title="Global Biodiversity Density Heatmap"
 )
 
 st.plotly_chart(heat_fig, use_container_width=True)
 
 # =========================
-# 🌎 COUNTRY ANALYSIS
+# 📊 COUNTRY CLUSTERS
 # =========================
-st.subheader("🌎 Country Distribution (Top 10)")
+st.subheader("📊 Top Biodiversity Countries")
 
-country_counts = df_clean["country"].value_counts().head(10)
+top_countries = df["country"].value_counts().head(10)
 
-col1, col2 = st.columns(2)
+cluster_df = pd.DataFrame({
+    "country": top_countries.index,
+    "count": top_countries.values
+})
 
-with col1:
-    st.bar_chart(country_counts)
+fig2 = px.bar(
+    cluster_df,
+    x="country",
+    y="count",
+    color="count",
+    color_continuous_scale="Blues",
+    title="Top 10 Countries by Observations"
+)
 
-with col2:
-    fig_pie = px.pie(
-        values=country_counts.values,
-        names=country_counts.index,
-        title="Country Share of Observations"
-    )
-    st.plotly_chart(fig_pie)
+st.plotly_chart(fig2, use_container_width=True)
 
 # =========================
-# 🧠 LIVE INSIGHTS
+# 🧠 ADVANCED INSIGHTS
 # =========================
-st.subheader("🧠 Live Ecological Intelligence")
+st.subheader("🧠 Ecological Intelligence Metrics")
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("Total Records", len(df_clean))
+    st.metric("Total Records", len(df))
 
 with col2:
-    st.metric("Countries Covered", df_clean["country"].nunique())
+    st.metric("Countries Covered (ISO)", df["iso3"].nunique())
 
 with col3:
-    st.metric("Unique Coordinates", df_clean[["lat", "lon"]].drop_duplicates().shape[0])
+    st.metric("Unique Geo Points", df_clean[["lat","lon"]].drop_duplicates().shape[0])
 
 with col4:
-    score = len(df_clean) / max(df_clean["country"].nunique(), 1)
-    st.metric("Data Spread Score", round(score, 2))
+    score = len(df) / max(df["iso3"].nunique(), 1)
+    st.metric("Data Density Score", round(score, 2))
 
 # =========================
-# 📌 INFO PANEL
+# INFO PANEL
 # =========================
 st.info("""
-This dashboard uses LIVE GBIF biodiversity occurrence data.
-No dataset is stored locally — all insights are generated in real time.
+This system uses LIVE GBIF biodiversity data.
+It performs:
+- Real-time species mapping
+- Country-level distribution analysis (ISO standard)
+- Global hotspot detection
+- Ecological density scoring
 
-It visualizes:
-- Species distribution
-- Geographic hotspots
-- Country-level biodiversity spread
-- Live ecological metrics
+No dataset is stored locally — everything is fetched dynamically.
 """)
