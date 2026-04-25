@@ -9,10 +9,10 @@ import plotly.express as px
 st.set_page_config(page_title="Biodiversity Intelligence System", layout="wide")
 
 st.title("🌍 Biodiversity Intelligence Dashboard (LIVE GBIF)")
-st.markdown("Real-time global species occurrence tracking using GBIF API")
+st.markdown("Real-time global biodiversity monitoring & analysis system")
 
 # =========================
-# SIDEBAR CONTROL PANEL
+# SPECIES LIST
 # =========================
 species_list = [
     "Panthera leo",
@@ -27,17 +27,24 @@ species_list = [
     "Felis catus"
 ]
 
-st.sidebar.header("🔎 Species Control Panel")
+# =========================
+# SIDEBAR CONTROLS
+# =========================
+st.sidebar.header("🔎 Control Panel")
 
-selected_species = st.sidebar.selectbox("Choose a species", species_list)
+selected_species = st.sidebar.selectbox("Choose Species", species_list)
 
-custom_species = st.sidebar.text_input("Or search manually")
+custom_species = st.sidebar.text_input("Or Search Manually")
 
 if custom_species:
     selected_species = custom_species
 
+selected_country = st.sidebar.selectbox("Filter by Country", ["All"])
+
+compare_species = st.sidebar.multiselect("Compare Species", species_list)
+
 # =========================
-# LIVE DATA FETCH (GBIF API)
+# LIVE DATA (GBIF)
 # =========================
 @st.cache_data(ttl=3600)
 def load_data(species_name):
@@ -64,14 +71,20 @@ def load_data(species_name):
 
 df = load_data(selected_species)
 
-# =========================
-# ERROR HANDLING
-# =========================
 if df.empty:
-    st.error("No data found for this species. Try another one.")
+    st.error("No data found for this species.")
     st.stop()
 
 df_clean = df.dropna(subset=["lat", "lon"])
+
+# =========================
+# FILTER BY COUNTRY (dynamic)
+# =========================
+countries = ["All"] + sorted(df_clean["country"].dropna().unique().tolist())
+selected_country = st.sidebar.selectbox("Filter by Country", countries)
+
+if selected_country != "All":
+    df_clean = df_clean[df_clean["country"] == selected_country]
 
 # =========================
 # 🌍 COLOURED WORLD MAP
@@ -85,17 +98,16 @@ map_fig = px.scatter_geo(
     color="country",
     hover_name="species",
     projection="natural earth",
-    title="Global Biodiversity Distribution (Colored by Country)"
+    title="Global Biodiversity Distribution (Live)"
 )
 
 map_fig.update_traces(marker=dict(size=6, opacity=0.7))
-
 map_fig.update_layout(height=600)
 
 st.plotly_chart(map_fig, use_container_width=True)
 
 # =========================
-# 🔥 HEATMAP (HOTSPOT MODE)
+# 🔥 HEATMAP
 # =========================
 st.subheader("🔥 Biodiversity Hotspot Heatmap")
 
@@ -113,7 +125,36 @@ heat_fig = px.density_map(
 st.plotly_chart(heat_fig, use_container_width=True)
 
 # =========================
-# 🌎 COUNTRY ANALYSIS
+# 📉 TIME TREND
+# =========================
+st.subheader("📉 Observation Trend Over Time")
+
+df_clean["year"] = pd.to_numeric(df_clean["year"], errors="coerce")
+trend = df_clean.groupby("year").size().reset_index(name="observations")
+
+if len(trend) > 1:
+    fig = px.line(trend, x="year", y="observations", title="Species Observation Trend")
+    st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# 🧠 RISK SCORE
+# =========================
+st.subheader("🧠 Extinction Risk Indicator")
+
+if len(trend) > 2:
+    slope = (trend["observations"].iloc[-1] - trend["observations"].iloc[0]) / len(trend)
+
+    if slope > 0:
+        risk = "🟢 Stable / Increasing"
+    elif slope > -2:
+        risk = "🟡 Moderate Decline"
+    else:
+        risk = "🔴 High Decline Risk"
+
+    st.metric("Risk Status", risk)
+
+# =========================
+# 🌎 COUNTRY STATS
 # =========================
 st.subheader("🌎 Country Distribution (Top 10)")
 
@@ -128,9 +169,30 @@ with col2:
     fig_pie = px.pie(
         values=country_counts.values,
         names=country_counts.index,
-        title="Country Share of Observations"
+        title="Country Share"
     )
     st.plotly_chart(fig_pie)
+
+# =========================
+# 🧬 SPECIES COMPARISON
+# =========================
+if compare_species:
+
+    comp_data = []
+
+    for sp in compare_species:
+        temp = load_data(sp)
+        comp_data.append({
+            "species": sp,
+            "records": len(temp)
+        })
+
+    comp_df = pd.DataFrame(comp_data)
+
+    st.subheader("🧬 Species Comparison")
+
+    fig = px.bar(comp_df, x="species", y="records", title="Species Observation Comparison")
+    st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # 🧠 LIVE INSIGHTS
@@ -153,15 +215,18 @@ with col4:
     st.metric("Data Spread Score", round(score, 2))
 
 # =========================
-# 📌 INFO PANEL
+# 📌 FINAL INSIGHT
 # =========================
 st.info("""
-This dashboard uses LIVE GBIF biodiversity occurrence data.
-No dataset is stored locally — all insights are generated in real time.
+🌍 This system uses live GBIF biodiversity data.
 
-It visualizes:
-- Species distribution
-- Geographic hotspots
-- Country-level biodiversity spread
-- Live ecological metrics
+It provides:
+- Global species distribution
+- Heatmap of ecological hotspots
+- Time-based trend analysis
+- Extinction risk indicator
+- Multi-species comparison
+- Country-level biodiversity insights
+
+No dataset is stored locally — everything is real-time.
 """)
