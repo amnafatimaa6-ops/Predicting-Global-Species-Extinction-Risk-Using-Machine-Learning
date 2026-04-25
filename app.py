@@ -4,50 +4,15 @@ import requests
 import plotly.express as px
 
 # =========================
-# 🌌 NASA-STYLE UI CONFIG
+# PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="BIO-INTEL // EARTH MONITORING SYSTEM",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Biodiversity Intelligence System", layout="wide")
 
-st.markdown(
-    """
-    <style>
-    body {
-        background-color: #0B0F19;
-        color: #00FFAA;
-    }
-
-    .stApp {
-        background-color: #0B0F19;
-        color: #00FFAA;
-    }
-
-    h1, h2, h3 {
-        color: #00FFAA;
-        font-family: 'Courier New';
-    }
-
-    .stMetric {
-        background-color: #111827;
-        border: 1px solid #00FFAA;
-        padding: 10px;
-        border-radius: 10px;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-st.title("🌍 BIO-INTEL SYSTEM // LIVE EARTH MONITORING")
-
-st.markdown("🛰️ Real-time biodiversity surveillance powered by GBIF API")
+st.title("🌍 Biodiversity Intelligence Dashboard (LIVE GBIF)")
+st.markdown("Real-time global biodiversity monitoring & analysis system")
 
 # =========================
-# SIDEBAR CONTROL PANEL
+# SPECIES LIST
 # =========================
 species_list = [
     "Panthera leo",
@@ -56,126 +21,144 @@ species_list = [
     "Canis lupus",
     "Ursus arctos",
     "Giraffa camelopardalis",
+    "Bos taurus",
     "Homo sapiens",
+    "Equus zebra",
     "Felis catus"
 ]
 
-st.sidebar.header("🛰️ CONTROL PANEL")
+# =========================
+# SIDEBAR CONTROLS
+# =========================
+st.sidebar.header("🔎 Control Panel")
 
-selected_species = st.sidebar.selectbox("Select Species", species_list)
+selected_species = st.sidebar.selectbox("Choose Species", species_list)
 
-custom = st.sidebar.text_input("Manual Input")
+custom_species = st.sidebar.text_input("Or Search Manually")
 
-if custom:
-    selected_species = custom
+if custom_species:
+    selected_species = custom_species
+
+selected_country = st.sidebar.selectbox("Filter by Country", ["All"])
+
+compare_species = st.sidebar.multiselect("Compare Species", species_list)
 
 # =========================
-# LIVE DATA
+# LIVE DATA (GBIF)
 # =========================
 @st.cache_data(ttl=3600)
-def fetch_data(species):
-    url = f"https://api.gbif.org/v1/occurrence/search?scientificName={species}&limit=300"
-    r = requests.get(url)
+def load_data(species_name):
+    url = f"https://api.gbif.org/v1/occurrence/search?scientificName={species_name}&limit=300"
+    res = requests.get(url)
 
-    if r.status_code != 200:
+    if res.status_code != 200:
         return pd.DataFrame()
 
-    data = r.json()
+    data = res.json()
 
     records = []
 
-    for i in data.get("results", []):
+    for item in data.get("results", []):
         records.append({
-            "species": i.get("species"),
-            "country": i.get("country"),
-            "year": i.get("year"),
-            "lat": i.get("decimalLatitude"),
-            "lon": i.get("decimalLongitude")
+            "species": item.get("species"),
+            "country": item.get("country"),
+            "year": item.get("year"),
+            "lat": item.get("decimalLatitude"),
+            "lon": item.get("decimalLongitude")
         })
 
     return pd.DataFrame(records)
 
-df = fetch_data(selected_species)
+df = load_data(selected_species)
 
 if df.empty:
-    st.error("⚠️ SIGNAL LOST — No data available")
+    st.error("No data found for this species.")
     st.stop()
 
-df = df.dropna(subset=["lat", "lon"])
+df_clean = df.dropna(subset=["lat", "lon"])
 
 # =========================
-# 🌍 GLOBAL MAP (NASA STYLE)
+# FILTER BY COUNTRY (dynamic)
 # =========================
-st.subheader(f"🌍 GLOBAL TRACKING: {selected_species}")
+countries = ["All"] + sorted(df_clean["country"].dropna().unique().tolist())
+selected_country = st.sidebar.selectbox("Filter by Country", countries)
+
+if selected_country != "All":
+    df_clean = df_clean[df_clean["country"] == selected_country]
+
+# =========================
+# 🌍 COLOURED WORLD MAP
+# =========================
+st.subheader(f"🌍 Global Distribution: {selected_species}")
 
 map_fig = px.scatter_geo(
-    df,
+    df_clean,
     lat="lat",
     lon="lon",
     color="country",
+    hover_name="species",
     projection="natural earth",
-    title="🛰️ Earth Biodiversity Grid View"
+    title="Global Biodiversity Distribution (Live)"
 )
 
-map_fig.update_traces(marker=dict(size=5, opacity=0.8))
-
-map_fig.update_layout(
-    paper_bgcolor="#0B0F19",
-    geo_bgcolor="#0B0F19",
-    font_color="#00FFAA",
-    height=600
-)
+map_fig.update_traces(marker=dict(size=6, opacity=0.7))
+map_fig.update_layout(height=600)
 
 st.plotly_chart(map_fig, use_container_width=True)
 
 # =========================
-# 🔥 HOTSPOT MAP
+# 🔥 HEATMAP
 # =========================
-st.subheader("🔥 ECOLOGICAL HEAT SIGNATURE")
+st.subheader("🔥 Biodiversity Hotspot Heatmap")
 
 heat_fig = px.density_map(
-    df,
+    df_clean,
     lat="lat",
     lon="lon",
-    radius=10,
+    radius=12,
     center=dict(lat=20, lon=0),
     zoom=0,
-    map_style="carto-darkmatter"
+    map_style="carto-positron",
+    title="Species Density Hotspots"
 )
 
 st.plotly_chart(heat_fig, use_container_width=True)
 
 # =========================
-# 🚨 ENDANGERED ALERT SYSTEM
+# 📉 TIME TREND
 # =========================
-st.subheader("🚨 CONSERVATION ALERT SYSTEM")
+st.subheader("📉 Observation Trend Over Time")
 
-df["year"] = pd.to_numeric(df["year"], errors="coerce")
+df_clean["year"] = pd.to_numeric(df_clean["year"], errors="coerce")
+trend = df_clean.groupby("year").size().reset_index(name="observations")
 
-trend = df.groupby("year").size().reset_index(name="observations")
+if len(trend) > 1:
+    fig = px.line(trend, x="year", y="observations", title="Species Observation Trend")
+    st.plotly_chart(fig, use_container_width=True)
 
-if len(trend) > 3:
+# =========================
+# 🧠 RISK SCORE
+# =========================
+st.subheader("🧠 Extinction Risk Indicator")
 
+if len(trend) > 2:
     slope = (trend["observations"].iloc[-1] - trend["observations"].iloc[0]) / len(trend)
 
-    if slope <= -3:
-        alert = "🔴 CRITICAL: EXTINCTION RISK HIGH"
-        color = "red"
-    elif slope < 0:
-        alert = "🟡 WARNING: POPULATION DECLINING"
-        color = "orange"
+    if slope > 0:
+        risk = "🟢 Stable / Increasing"
+    elif slope > -2:
+        risk = "🟡 Moderate Decline"
     else:
-        alert = "🟢 STABLE ECOLOGICAL STATUS"
-        color = "green"
+        risk = "🔴 High Decline Risk"
 
-    st.markdown(f"### <span style='color:{color}'>{alert}</span>", unsafe_allow_html=True)
+    st.metric("Risk Status", risk)
 
 # =========================
-# 📊 COUNTRY INTELLIGENCE
+# 🌎 COUNTRY STATS
 # =========================
-st.subheader("🌎 TERRITORIAL DISTRIBUTION GRID")
+st.subheader("🌎 Country Distribution (Top 10)")
 
-country_counts = df["country"].value_counts().head(10)
+country_counts = df_clean["country"].value_counts().head(10)
 
 col1, col2 = st.columns(2)
 
@@ -183,34 +166,67 @@ with col1:
     st.bar_chart(country_counts)
 
 with col2:
-    fig = px.pie(values=country_counts.values, names=country_counts.index)
-    fig.update_layout(
-        paper_bgcolor="#0B0F19",
-        font_color="#00FFAA"
+    fig_pie = px.pie(
+        values=country_counts.values,
+        names=country_counts.index,
+        title="Country Share"
     )
-    st.plotly_chart(fig)
+    st.plotly_chart(fig_pie)
 
 # =========================
-# 🧠 SYSTEM METRICS
+# 🧬 SPECIES COMPARISON
 # =========================
-st.subheader("🧠 SYSTEM STATUS")
+if compare_species:
 
-col1, col2, col3 = st.columns(3)
+    comp_data = []
+
+    for sp in compare_species:
+        temp = load_data(sp)
+        comp_data.append({
+            "species": sp,
+            "records": len(temp)
+        })
+
+    comp_df = pd.DataFrame(comp_data)
+
+    st.subheader("🧬 Species Comparison")
+
+    fig = px.bar(comp_df, x="species", y="records", title="Species Observation Comparison")
+    st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# 🧠 LIVE INSIGHTS
+# =========================
+st.subheader("🧠 Live Ecological Intelligence")
+
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("RECORDS SCANNED", len(df))
+    st.metric("Total Records", len(df_clean))
 
 with col2:
-    st.metric("COUNTRIES DETECTED", df["country"].nunique())
+    st.metric("Countries Covered", df_clean["country"].nunique())
 
 with col3:
-    st.metric("COORDINATE NODES", df[["lat","lon"]].drop_duplicates().shape[0])
+    st.metric("Unique Coordinates", df_clean[["lat", "lon"]].drop_duplicates().shape[0])
+
+with col4:
+    score = len(df_clean) / max(df_clean["country"].nunique(), 1)
+    st.metric("Data Spread Score", round(score, 2))
 
 # =========================
-# 📡 FOOTER
+# 📌 FINAL INSIGHT
 # =========================
-st.markdown("""
-🛰️ BIO-INTEL SYSTEM ACTIVE  
-🌍 Monitoring planetary biodiversity in real-time  
-⚡ No static dataset — only live ecological signals
+st.info("""
+🌍 This system uses live GBIF biodiversity data.
+
+It provides:
+- Global species distribution
+- Heatmap of ecological hotspots
+- Time-based trend analysis
+- Extinction risk indicator
+- Multi-species comparison
+- Country-level biodiversity insights
+
+No dataset is stored locally — everything is real-time.
 """)
