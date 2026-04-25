@@ -5,7 +5,7 @@ A Data-Driven Framework for Long-Term Species Population Analysis and Extinction
 
 # Machine Learning for Biodiversity Risk Prediction 📌
 
-# Project Summary (what you tell evaluators) 🧠
+# Project Summary🧠
 
 This project uses machine learning to analyse long-term species population data and predict extinction risk categories (Stable, Vulnerable, Endangered). The goal is not just prediction, but understanding ecological decline patterns and highlighting how data bias affects conservation insights.
 
