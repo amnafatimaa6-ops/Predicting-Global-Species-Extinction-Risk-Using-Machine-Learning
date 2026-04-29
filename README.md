@@ -13,6 +13,29 @@ Instead of relying on raw snapshots, the system models population change over ti
 
 -------------------------------------------------------------------------------------------------------------------------------------
 
+# Link
+https://predicting-global-species-extinction-risk-using-machine-learni.streamlit.app/
+
+### Demo 1
+
+![Demo 1](demo1.gif)
+
+
+
+### Demo 2
+![Demo 2](demo2.gif)
+
+
+
+### Demo 3
+![Demo 3](demo3.gif)
+
+
+### Demo 4
+![Demo 4](demo4.gif)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
 # Problem Statement📊
 
 Biodiversity datasets are large but inconsistent across regions and time. Manual analysis of species decline is slow and subjective.
