@@ -86,6 +86,16 @@ if selected_country != "All":
     df_clean = df_clean[df_clean["country"] == selected_country]
 
 # =========================
+# 🔥 RISK INTENSITY MODEL (NEW)
+# =========================
+country_density = df_clean["country"].value_counts().to_dict()
+
+df_clean["risk_score"] = df_clean["country"].map(country_density)
+
+max_risk = df_clean["risk_score"].max()
+df_clean["risk_norm"] = (df_clean["risk_score"] / max_risk) * 255
+
+# =========================
 # 🌍 MAP
 # =========================
 st.subheader(f"🌍 Global Distribution: {selected_species}")
@@ -131,7 +141,7 @@ if len(trend) > 1:
     st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# 🧠 RISK
+# 🧠 RISK INDICATOR
 # =========================
 st.subheader("🧠 Extinction Risk Indicator")
 
@@ -164,7 +174,7 @@ with col2:
     st.plotly_chart(fig_pie)
 
 # =========================
-# 🧬 SPECIES COMPARISON (FIXED)
+# 🧬 SPECIES COMPARISON
 # =========================
 if compare_species:
 
@@ -212,7 +222,7 @@ with col4:
     st.metric("Data Spread Score", round(score, 2))
 
 # =========================
-# 🛰️ SATELLITE MODE (NEW)
+# 🛰️ SATELLITE MODE
 # =========================
 st.subheader("🛰️ Satellite Mode: Earth Systems View")
 
@@ -221,11 +231,8 @@ sat_mode = st.selectbox(
     ["Night Lights (Human Activity)", "Vegetation Index (NDVI)"]
 )
 
-if not df_clean.empty:
-    center_lat = df_clean["lat"].mean()
-    center_lon = df_clean["lon"].mean()
-else:
-    center_lat, center_lon = 20, 0
+center_lat = df_clean["lat"].mean()
+center_lon = df_clean["lon"].mean()
 
 if sat_mode == "Night Lights (Human Activity)":
 
@@ -244,8 +251,6 @@ if sat_mode == "Night Lights (Human Activity)":
         )
     ))
 
-    st.info("🌃 Human activity footprint via night light intensity")
-
 elif sat_mode == "Vegetation Index (NDVI)":
 
     layer = pdk.Layer(
@@ -263,20 +268,45 @@ elif sat_mode == "Vegetation Index (NDVI)":
         )
     ))
 
-    st.info("🌿 Vegetation health and ecosystem productivity")
+# =========================
+# 🔴 RISK GLOW OVERLAY MAP (NEW)
+# =========================
+st.subheader("🔥 Ecological Risk Glow Map")
+
+risk_layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=df_clean,
+    get_position='[lon, lat]',
+    get_radius=50000,
+    get_fill_color='[255, 0, 0, risk_norm]',
+    opacity=0.6,
+    pickable=True
+)
+
+glow_map = pdk.Deck(
+    layers=[risk_layer],
+    initial_view_state=pdk.ViewState(
+        latitude=center_lat,
+        longitude=center_lon,
+        zoom=1
+    ),
+    tooltip={"text": "Species: {species}\nCountry: {country}"}
+)
+
+st.pydeck_chart(glow_map)
+
+st.info("🔥 Red glow shows ecological pressure zones (proxy model based on biodiversity density).")
 
 # =========================
-# INFO
+# FINAL INFO
 # =========================
 st.info("""
-🌍 Live GBIF biodiversity intelligence system
-
-Includes:
-- Species distribution mapping
+🌍 Live biodiversity intelligence system with:
+- Distribution maps
 - Heatmaps
 - Trend analysis
 - Risk estimation
-- Country stats
 - Species comparison
-- Satellite Earth layers (night lights + NDVI)
+- Satellite Earth layers
+- Ecological risk glow overlay
 """)
