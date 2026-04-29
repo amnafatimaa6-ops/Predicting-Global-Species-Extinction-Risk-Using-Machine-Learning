@@ -174,17 +174,24 @@ with col2:
     st.plotly_chart(fig_pie)
 
 # =========================
-# 🧬 SPECIES COMPARISON
+# 🧬 SPECIES COMPARISON (FIXED)
 # =========================
 if compare_species:
 
     comp_data = []
 
     for sp in compare_species:
-        temp = load_data(sp)
+        url = f"https://api.gbif.org/v1/occurrence/search?scientificName={sp}&limit=0"
+        res = requests.get(url)
+
+        if res.status_code == 200:
+            total_count = res.json().get("count", 0)
+        else:
+            total_count = 0
+
         comp_data.append({
             "species": sp,
-            "records": len(temp)
+            "records": total_count
         })
 
     comp_df = pd.DataFrame(comp_data)
