@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
+import pydeck as pdk
 
 # =========================
 # PAGE CONFIG
@@ -38,8 +39,6 @@ custom_species = st.sidebar.text_input("Or Search Manually")
 
 if custom_species:
     selected_species = custom_species
-
-selected_country = st.sidebar.selectbox("Filter by Country", ["All"])
 
 compare_species = st.sidebar.multiselect("Compare Species", species_list)
 
@@ -78,7 +77,7 @@ if df.empty:
 df_clean = df.dropna(subset=["lat", "lon"])
 
 # =========================
-# FILTER BY COUNTRY (dynamic)
+# FILTER BY COUNTRY
 # =========================
 countries = ["All"] + sorted(df_clean["country"].dropna().unique().tolist())
 selected_country = st.sidebar.selectbox("Filter by Country", countries)
@@ -87,7 +86,7 @@ if selected_country != "All":
     df_clean = df_clean[df_clean["country"] == selected_country]
 
 # =========================
-# 🌍 COLOURED WORLD MAP
+# 🌍 MAP
 # =========================
 st.subheader(f"🌍 Global Distribution: {selected_species}")
 
@@ -97,12 +96,8 @@ map_fig = px.scatter_geo(
     lon="lon",
     color="country",
     hover_name="species",
-    projection="natural earth",
-    title="Global Biodiversity Distribution (Live)"
+    projection="natural earth"
 )
-
-map_fig.update_traces(marker=dict(size=6, opacity=0.7))
-map_fig.update_layout(height=600)
 
 st.plotly_chart(map_fig, use_container_width=True)
 
@@ -118,14 +113,13 @@ heat_fig = px.density_map(
     radius=12,
     center=dict(lat=20, lon=0),
     zoom=0,
-    map_style="carto-positron",
-    title="Species Density Hotspots"
+    map_style="carto-positron"
 )
 
 st.plotly_chart(heat_fig, use_container_width=True)
 
 # =========================
-# 📉 TIME TREND
+# 📉 TREND
 # =========================
 st.subheader("📉 Observation Trend Over Time")
 
@@ -133,11 +127,11 @@ df_clean["year"] = pd.to_numeric(df_clean["year"], errors="coerce")
 trend = df_clean.groupby("year").size().reset_index(name="observations")
 
 if len(trend) > 1:
-    fig = px.line(trend, x="year", y="observations", title="Species Observation Trend")
+    fig = px.line(trend, x="year", y="observations")
     st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# 🧠 RISK SCORE
+# 🧠 RISK
 # =========================
 st.subheader("🧠 Extinction Risk Indicator")
 
@@ -166,11 +160,7 @@ with col1:
     st.bar_chart(country_counts)
 
 with col2:
-    fig_pie = px.pie(
-        values=country_counts.values,
-        names=country_counts.index,
-        title="Country Share"
-    )
+    fig_pie = px.pie(values=country_counts.values, names=country_counts.index)
     st.plotly_chart(fig_pie)
 
 # =========================
@@ -198,11 +188,11 @@ if compare_species:
 
     st.subheader("🧬 Species Comparison")
 
-    fig = px.bar(comp_df, x="species", y="records", title="Species Observation Comparison")
+    fig = px.bar(comp_df, x="species", y="records")
     st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# 🧠 LIVE INSIGHTS
+# 🧠 INSIGHTS
 # =========================
 st.subheader("🧠 Live Ecological Intelligence")
 
@@ -222,18 +212,71 @@ with col4:
     st.metric("Data Spread Score", round(score, 2))
 
 # =========================
-# 📌 FINAL INSIGHT
+# 🛰️ SATELLITE MODE (NEW)
+# =========================
+st.subheader("🛰️ Satellite Mode: Earth Systems View")
+
+sat_mode = st.selectbox(
+    "Choose Satellite Layer",
+    ["Night Lights (Human Activity)", "Vegetation Index (NDVI)"]
+)
+
+if not df_clean.empty:
+    center_lat = df_clean["lat"].mean()
+    center_lon = df_clean["lon"].mean()
+else:
+    center_lat, center_lon = 20, 0
+
+if sat_mode == "Night Lights (Human Activity)":
+
+    layer = pdk.Layer(
+        "TileLayer",
+        data="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg",
+        opacity=0.7
+    )
+
+    st.pydeck_chart(pdk.Deck(
+        layers=[layer],
+        initial_view_state=pdk.ViewState(
+            latitude=center_lat,
+            longitude=center_lon,
+            zoom=1
+        )
+    ))
+
+    st.info("🌃 Human activity footprint via night light intensity")
+
+elif sat_mode == "Vegetation Index (NDVI)":
+
+    layer = pdk.Layer(
+        "TileLayer",
+        data="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg",
+        opacity=0.7
+    )
+
+    st.pydeck_chart(pdk.Deck(
+        layers=[layer],
+        initial_view_state=pdk.ViewState(
+            latitude=center_lat,
+            longitude=center_lon,
+            zoom=1
+        )
+    ))
+
+    st.info("🌿 Vegetation health and ecosystem productivity")
+
+# =========================
+# INFO
 # =========================
 st.info("""
-🌍 This system uses live GBIF biodiversity data.
+🌍 Live GBIF biodiversity intelligence system
 
-It provides:
-- Global species distribution
-- Heatmap of ecological hotspots
-- Time-based trend analysis
-- Extinction risk indicator
-- Multi-species comparison
-- Country-level biodiversity insights
-
-No dataset is stored locally — everything is real-time.
+Includes:
+- Species distribution mapping
+- Heatmaps
+- Trend analysis
+- Risk estimation
+- Country stats
+- Species comparison
+- Satellite Earth layers (night lights + NDVI)
 """)
