@@ -16,23 +16,24 @@ Instead of relying on raw snapshots, the system models population change over ti
 # Link
 https://predicting-global-species-extinction-risk-using-machine-learni.streamlit.app/
 
+
 ### Demo 1
+![Demo 1](demos/demo1.gif)
 
-![Demo 1](demo1.gif)
-
-
+---
 
 ### Demo 2
-![Demo 2](demo2.gif)
+![Demo 2](demos/demo2.gif)
 
-
+---
 
 ### Demo 3
-![Demo 3](demo3.gif)
+![Demo 3](demos/demo3.gif)
 
+---
 
 ### Demo 4
-![Demo 4](demo4.gif)
+![Demo 4](demos/demo4.gif)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
