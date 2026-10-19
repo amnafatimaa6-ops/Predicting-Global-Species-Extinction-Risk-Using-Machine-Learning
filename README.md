@@ -43,7 +43,7 @@ https://predicting-global-species-extinction-risk-using-machine-learni.streamlit
 
 **Important:** The notebook and the live dashboard are separate parts of this repository. The notebook contains the machine learning experiments. The dashboard uses live biodiversity occurrence records from GBIF and does not currently use the notebook's trained model.
 
-## 1. The Question Behind the Project
+##  The Question Behind the Project
 
 Species populations can change over time, but studying these changes is not always straightforward. Historical datasets may contain missing values, uneven geographical coverage, and different amounts of monitoring across countries.
 
@@ -51,7 +51,7 @@ I wanted to explore this question:
 
 **Can historical population changes be used to classify species into different population-trend risk categories, and what limitations appear when interpreting the results?**
 
-## 2. Dataset and Preparation
+##  Dataset and Preparation
 
 The notebook uses a file named `LPD_2024_public.csv`.
 
@@ -69,13 +69,12 @@ These figures describe the processed dataset before the final filtering used for
 
 The CSV file is not included in the repository. To reproduce the notebook, you need to obtain the dataset separately and update the file path to match your environment.
 
-## 3. Creating Population-Change Features
+##  Creating Population-Change Features
 
 I calculated the relative population change between 1970 and 2020:
-
-\[
-\text{Change Rate}=\frac{P_{2020}-P_{1970}}{P_{1970}}
-\]
+$$
+\text{Change Rate} = \frac{P_{2020} - P_{1970}}{P_{1970}}
+$$
 
 I used this value to create three project-defined categories:
 
@@ -89,7 +88,7 @@ I also created features representing absolute population change, growth ratio, a
 
 A minimum baseline population of 10 was applied, and invalid or infinite values were removed before model training.
 
-## 4. Machine Learning Approach
+##  Machine Learning Approach
 
 I compared three classification models using a stratified 80/20 train-test split with `random_state=42`:
 
@@ -109,7 +108,7 @@ The target was the project-defined risk category. I used `LabelEncoder` to conve
 
 `StandardScaler` was fitted on the training features and then applied to the test features.
 
-## 5. Results
+##  Results
 
 The notebook reported the following test-set accuracy:
 
@@ -131,7 +130,7 @@ The target categories were created from the population values for 1970 and 2020.
 
 The test score therefore measures how well the model reproduces these project-defined categories on a small held-out sample. It does not establish reliable forecasting performance on unseen species or future population data.
 
-## 6. Exploring Geographical Patterns and Data Bias
+##  Exploring Geographical Patterns and Data Bias
 
 The notebook also examines the distribution of species records across countries and continents.
 
@@ -143,7 +142,7 @@ Differences in monitoring effort, historical records, and reporting coverage may
 
 The geographical findings should therefore be treated as exploratory, not as a global ranking of extinction severity.
 
-## 7. Interactive Biodiversity Dashboard
+##  Interactive Biodiversity Dashboard
 
 The repository also includes a Streamlit application that explores live biodiversity occurrence records.
 
@@ -162,7 +161,7 @@ The dashboard retrieves occurrence records from the GBIF API and uses the number
 
 **The dashboard's risk indicators are simplified proxies, not predictions from the notebook's Random Forest model.** Changes in recorded observations can reflect changes in data collection as well as changes in nature. The satellite layers are map imagery; they are not used as input features by the notebook's trained classifier.
 
-## 8. Tools Used
+##  Tools Used
 
 - Python
 - Pandas and NumPy
@@ -174,7 +173,7 @@ The dashboard retrieves occurrence records from the GBIF API and uses the number
 - PyDeck
 - GBIF API
 
-## 9. What I Learned
+## What I Learned
 
 This project helped me practise cleaning a large dataset, reshaping time-based data, creating features, training classification models, comparing evaluation metrics, and interpreting visualisations.
 
@@ -182,14 +181,44 @@ One of my main takeaways was that a high accuracy score is not enough to establi
 
 I also learned that geographical patterns need context. More records in a country do not automatically mean greater biodiversity loss there.
 
-## 10. Possible Next Steps
+##  Limitations
 
-- Build a more independent evaluation using features that do not directly determine the target labels.
-- Test on species and time periods kept completely separate from model development.
-- Compare the project-defined categories with independently assessed conservation status, where suitable data are available.
-- Investigate missing data and uneven monitoring across regions.
-- Connect the dashboard to a properly validated model if the two parts are developed into one system.
+Although this project helped me explore population trends and machine learning, there are several limitations to consider.
 
-## Conclusion
+- **Simplified risk categories:** The Stable, Vulnerable, and Endangered labels were created using population changes between 1970 and 2020. They are project-defined categories, not official IUCN conservation assessments.
 
-This project is an exploration of historical population trends, classification methods, and the limitations of biodiversity data. Its main value is not a claim of near-perfect extinction prediction, but the practical experience of building a data-analysis workflow and examining how modelling choices affect scientific conclusions.
+- **Possible target leakage:** The target labels are calculated from population values that are also included in the model's input features. This means the models can learn the rule used to create the labels rather than independently predict extinction risk. Therefore, the reported accuracy should not be interpreted as evidence of reliable real-world prediction.
+
+- **Small test set:** The test set contains only 24 samples. With so few samples, the results can change considerably depending on which observations are selected for testing.
+
+- **Limited evaluation:** The notebook compares three classifiers using a single stratified train-test split. It does not establish how well the models would perform on entirely new species or future population data.
+
+- **Missing and uneven data:** Removing missing population observations makes the analysis easier to perform, but it can also exclude useful information. Differences in monitoring and reporting across countries may affect the patterns found in the dataset.
+
+- **Geographical interpretation:** The country-level analysis is exploratory. A higher number of records or species in a group does not automatically indicate a higher real-world extinction rate.
+
+- **Separate notebook and dashboard:** The machine learning experiments and the Streamlit dashboard are not integrated. The dashboard retrieves species-occurrence records from GBIF and uses its own simplified indicators rather than the trained classifier from the notebook.
+
+These limitations mean that the project should be understood as an educational exploration of population data and classification methods, rather than a validated extinction-risk prediction system.
+
+##  Future Work
+
+There are several ways I would like to improve this project:
+
+- **Create a more independent prediction task:** Use features that are available before the prediction period and avoid calculating the target directly from the same information supplied to the model.
+
+- **Test on future data:** Train the model using earlier years and evaluate it against later observations to investigate whether it can identify population trends beyond the data used for training.
+
+- **Evaluate on unseen species:** Keep some species completely separate from model development to test whether the approach generalises to species it has not encountered.
+
+- **Improve model evaluation:** Use additional evaluation metrics and repeated validation, where appropriate, instead of relying on accuracy from one small test set.
+
+- **Compare with independent conservation assessments:** Where suitable data are available, compare the results with official conservation assessments, such as IUCN Red List categories, while accounting for the differences between population decline and extinction risk.
+
+- **Investigate data quality:** Examine missing observations, differences in monitoring effort, and geographical imbalances to better understand how they affect the analysis.
+
+- **Improve the interactive dashboard:** Explore the possibility of connecting a properly evaluated model to the Streamlit application, while keeping live occurrence records, population estimates, and model predictions clearly distinguished.
+
+These are proposed improvements, not features already completed in the current project.
+
+##
