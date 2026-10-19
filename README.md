@@ -1,15 +1,11 @@
-# Predicting-Global-Species-Extinction-Risk-Using-Machine-Learning
+# Exploring Species Population Change with Machine Learning
 
-🧬 Machine Learning for Biodiversity Risk Prediction
-A Data-Driven Framework for Long-Term Species Population Analysis and Extinction Risk Modeling
+This project explores historical animal population data to understand how population trends can be grouped into different risk categories using machine learning.
 
-# Machine Learning for Biodiversity Risk Prediction 📌
+I used Python to clean and analyse the data, create population-change features, compare classification models, and explore how uneven data collection can affect the interpretation of biodiversity patterns.
 
-# Project Summary🧠
+The project is an educational analysis, not a validated system for predicting real-world extinction risk.
 
-This project uses machine learning to analyse long-term species population data and predict extinction risk categories (Stable, Vulnerable, Endangered). The goal is not just prediction, but understanding ecological decline patterns and highlighting how data bias affects conservation insights.
-
-Instead of relying on raw snapshots, the system models population change over time (1970 → 2020) to capture real ecological trends.
 
 -------------------------------------------------------------------------------------------------------------------------------------
 
@@ -37,145 +33,163 @@ https://predicting-global-species-extinction-risk-using-machine-learni.streamlit
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Problem Statement📊
 
-Biodiversity datasets are large but inconsistent across regions and time. Manual analysis of species decline is slow and subjective.
+## Project Links
 
-So the key question was:
+- **GitHub repository:** [View the code](https://github.com/amnafatimaa6-ops/Predicting-Global-Species-Extinction-Risk-Using-Machine-Learning)
+- **Jupyter notebook:** [Endangered_species.ipynb](https://github.com/amnafatimaa6-ops/Predicting-Global-Species-Extinction-Risk-Using-Machine-Learning/blob/main/Endangered_species.ipynb)
+- **Interactive dashboard:** [Open the Streamlit app](https://predicting-global-species-extinction-risk-using-machine-learni.streamlit.app/)
+- **Demo screenshots:** [View the demos folder](https://github.com/amnafatimaa6-ops/Predicting-Global-Species-Extinction-Risk-Using-Machine-Learning/tree/main/demos)
 
-Can we use machine learning to classify species into risk categories based on long-term population trends?
+**Important:** The notebook and the live dashboard are separate parts of this repository. The notebook contains the machine learning experiments. The dashboard uses live biodiversity occurrence records from GBIF and does not currently use the notebook's trained model.
 
-# Data Processing 
+## 1. The Question Behind the Project
 
-Dataset contains 5000+ species and 420,000+ records
-Converted from wide format → long format for time-series analysis
-Cleaned missing population values
-Standardised year-based columns
-Aggregated data at species level
+Species populations can change over time, but studying these changes is not always straightforward. Historical datasets may contain missing values, uneven geographical coverage, and different amounts of monitoring across countries.
 
-This step ensures the dataset becomes usable for ML instead of raw ecological logs.
+I wanted to explore this question:
 
------------------------------------------------------------------------------------------------------------------------------------------
+**Can historical population changes be used to classify species into different population-trend risk categories, and what limitations appear when interpreting the results?**
 
-# Feature Engineering 🧬
+## 2. Dataset and Preparation
 
-Instead of feeding raw data, I engineered ecological indicators:
+The notebook uses a file named `LPD_2024_public.csv`.
 
-# 1. Population Change
+After removing an irrelevant column, standardising column names, and checking missing values, I reshaped the yearly population data from wide format into long format.
 
-Measures absolute decline or growth.
+The processed dataset contained:
 
-# 2. Growth Ratio
+- **420,356 records**
+- **5,176 unique species**
+- **202 countries**
 
-Captures proportional change:
+Missing population observations were removed. I then averaged population values across locations for each species and year, allowing me to compare population values for 1970 and 2020.
 
-Prevents bias from large vs small populations
-# 3. Log Change
+These figures describe the processed dataset before the final filtering used for model training.
 
-Smooths extreme variation in ecological data
+The CSV file is not included in the repository. To reproduce the notebook, you need to obtain the dataset separately and update the file path to match your environment.
 
-These features represent ecological behaviour, not just numbers
+## 3. Creating Population-Change Features
 
---------------------------------------------------------------------------------------------------------------------------------------
+I calculated the relative population change between 1970 and 2020:
 
+\[
+\text{Change Rate}=\frac{P_{2020}-P_{1970}}{P_{1970}}
+\]
 
-# Target Variable (Risk Classification)🎯
+I used this value to create three project-defined categories:
 
-Species were labelled using decline rate:
+- **Stable:** change rate greater than -0.2
+- **Vulnerable:** change rate greater than -0.5 and up to -0.2
+- **Endangered:** change rate of -0.5 or lower
 
-Stable → minimal decline
-Vulnerable → moderate decline
-Endangered → severe decline
+These are simplified categories created for this project. They are **not official IUCN Red List classifications**.
 
-This converts the problem into a multi-class classification task.
+I also created features representing absolute population change, growth ratio, and log-transformed population change.
 
----------------------------------------------------------------------------------------------------------------------------------
+A minimum baseline population of 10 was applied, and invalid or infinite values were removed before model training.
 
-# Models Used🤖
+## 4. Machine Learning Approach
 
-Three models were tested:
+I compared three classification models using a stratified 80/20 train-test split with `random_state=42`:
 
-Model	Accuracy
-Logistic Regression	~91.7%
-Random Forest	~95.8%
-Gradient Boosting	~95.8%
-Final Model Choice: Random Forest
+- Logistic Regression
+- Random Forest
+- Gradient Boosting
 
-Chosen because:
+The notebook used five input features:
 
-High accuracy
+- Population in 1970
+- Population in 2020
+- Absolute population change
+- Growth ratio
+- Log-transformed population change
 
-Handles nonlinear ecological relationships well
-More interpretable (important for scientific use)
+The target was the project-defined risk category. I used `LabelEncoder` to convert the category labels into numerical values.
 
-📈 Key Results
+`StandardScaler` was fitted on the training features and then applied to the test features.
 
-🔥 Most Important Features:
+## 5. Results
 
-Growth Ratio (most influential)
-Log Change
-Population trend difference
+The notebook reported the following test-set accuracy:
 
------------------------------------------------------------------------------------------------------------------------------------
+| Model | Accuracy |
+|---|---:|
+| Logistic Regression | 91.67% |
+| Random Forest | 95.83% |
+| Gradient Boosting | 95.83% |
 
-#Insight:
+Random Forest was selected as the final model in the notebook. Feature-importance analysis highlighted growth ratio and log change as influential features.
 
-Relative population change matters more than raw population numbers.
+The Random Forest classification report showed an overall macro F1-score of approximately 0.88. The least-represented class had only two test samples, with a recall of 0.50, so the overall accuracy needs to be interpreted carefully.
 
-#graphic Insight (Critical Thinking Section)
+### An important limitation of these results
 
-The model showed higher endangered counts in countries like the US and UK.
+The reported accuracy is not evidence that the model can independently predict future extinction risk.
 
-But this is NOT real extinction severity.
+The target categories were created from the population values for 1970 and 2020. The model then received those same values and features calculated from them. This creates a circular relationship between the inputs and the target: the model can learn the rule used to assign the categories.
 
- Important finding:
+The test score therefore measures how well the model reproduces these project-defined categories on a small held-out sample. It does not establish reliable forecasting performance on unseen species or future population data.
 
-This reflects data bias, not biodiversity reality.
+## 6. Exploring Geographical Patterns and Data Bias
 
-Why?
+The notebook also examines the distribution of species records across countries and continents.
 
-Developed countries have better monitoring systems
-More historical records
-Higher reporting density
+In this separate analysis, I used a simplified growth-ratio rule to group records by population change and then compared the resulting country counts.
 
-So the model is partially learning:
+The notebook found that some countries, including the United States and the United Kingdom, contributed relatively high counts within this dataset-defined group. These counts do not establish that those countries have the highest real-world extinction rates.
 
-“Where we collect more data, we detect more risk.”
+Differences in monitoring effort, historical records, and reporting coverage may influence the patterns. The analysis raises the question of whether areas with more available data are more visible in the results.
 
-This shows strong awareness of bias in machine learning datasets, which evaluators LOVE.
+The geographical findings should therefore be treated as exploratory, not as a global ranking of extinction severity.
 
+## 7. Interactive Biodiversity Dashboard
 
------------------------------------------------------------------------------------------------------------------------------------
+The repository also includes a Streamlit application that explores live biodiversity occurrence records.
 
-📊 Evaluation Metrics
+The app currently provides:
 
-Accuracy: ~95.8%
-Strong precision for major classes
-Slight confusion between adjacent risk categories (expected in ecological overlap)
+- Species search and comparison
+- Geographic distribution maps
+- Occurrence heatmaps
+- Observation trends over time
+- Country-level record summaries
+- A simple observation-trend indicator
+- External NASA Earth-data map layers for night lights and vegetation index
+- A map overlay based on the distribution of occurrence records
 
+The dashboard retrieves occurrence records from the GBIF API and uses the number and distribution of records to create some of its visual indicators.
 
-This project goes beyond classification. It demonstrates how machine learning can be used to interpret ecological systems while also revealing a deeper truth:
+**The dashboard's risk indicators are simplified proxies, not predictions from the notebook's Random Forest model.** Changes in recorded observations can reflect changes in data collection as well as changes in nature. The satellite layers are map imagery; they are not used as input features by the notebook's trained classifier.
 
-Data does not just describe nature — it shapes how we perceive it.
+## 8. Tools Used
 
-Even a highly accurate model reflects the limitations of its dataset, especially in global biodiversity studies where data collection is uneven.
+- Python
+- Pandas and NumPy
+- Matplotlib and Seaborn
+- Scikit-learn
+- Jupyter Notebook
+- Streamlit
+- Plotly
+- PyDeck
+- GBIF API
 
------------------------------------------------------------------------------------------------------------------------------------------
+## 9. What I Learned
 
+This project helped me practise cleaning a large dataset, reshaping time-based data, creating features, training classification models, comparing evaluation metrics, and interpreting visualisations.
 
-# Skills Demonstrated 💼 
+One of my main takeaways was that a high accuracy score is not enough to establish that a model answers the scientific question we intended to ask. The way a target is defined, the features supplied to a model, the number of test samples, and the quality of the underlying data all matter.
 
+I also learned that geographical patterns need context. More records in a country do not automatically mean greater biodiversity loss there.
 
-Data Cleaning & Preprocessing
+## 10. Possible Next Steps
 
-Feature Engineering (time-series ecological data)
+- Build a more independent evaluation using features that do not directly determine the target labels.
+- Test on species and time periods kept completely separate from model development.
+- Compare the project-defined categories with independently assessed conservation status, where suitable data are available.
+- Investigate missing data and uneven monitoring across regions.
+- Connect the dashboard to a properly validated model if the two parts are developed into one system.
 
-Supervised Machine Learning
+## Conclusion
 
-Model Evaluation & Comparison
-
-Data Visualization
-
-Bias detection in datasets
-
-Scientific interpretation of ML results
+This project is an exploration of historical population trends, classification methods, and the limitations of biodiversity data. Its main value is not a claim of near-perfect extinction prediction, but the practical experience of building a data-analysis workflow and examining how modelling choices affect scientific conclusions.
